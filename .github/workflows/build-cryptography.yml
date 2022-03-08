@@ -1,0 +1,48 @@
+name: Build Cryptography on Power
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - uses: uraimo/run-on-arch-action@v2.1.1
+        name: Install dependencies and build cryptography
+        with:
+          arch: ppc64le
+          distro: ubuntu20.04
+          
+          # Create an artifacts directory
+          setup: |
+            mkdir -p "${PWD}/artifacts"
+          
+          # Mount the artifacts directory as /artifacts in the container
+          dockerRunArgs: |
+            --volume "${PWD}/artifacts:/artifacts"
+      
+          run: |
+            arch
+            apt-get update -y
+            apt-get install -y git python3 build-essential openssl libssl-dev enchant python3-venv python3-pip rustc 
+            pip3 install --upgrade pip; 
+            pip3 install setuptools-rust; 
+            pip3 install wheel; 
+            pip3 install check-wheel-contents;
+            #Building cryptography
+            chmod +x ./build.sh
+            ./build.sh
+            
+            #Copy built wheel file to artifacts directory
+            cp -r ./cryptography/dist/ /artifacts/
+            
+      - uses: actions/upload-artifact@v3
+        with:
+          name: cryptography-ppc-whl
+          path: ./artifacts/
