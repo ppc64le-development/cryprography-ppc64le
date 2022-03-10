@@ -15,6 +15,7 @@ jobs:
       
       - uses: uraimo/run-on-arch-action@v2.1.1
         name: Install dependencies and build cryptography
+        id: build
         with:
           arch: ppc64le
           distro: ubuntu20.04
@@ -28,7 +29,6 @@ jobs:
             --volume "${PWD}/artifacts:/artifacts"
       
           run: |
-            arch
             apt-get update -y
             apt-get install -y git python3 build-essential openssl libssl-dev enchant python3-venv python3-pip rustc 
             pip3 install --upgrade pip; 
@@ -37,12 +37,30 @@ jobs:
             pip3 install check-wheel-contents;
             #Building cryptography
             chmod +x ./build.sh
-            ./build.sh
+            source ./build.sh
+            echo '::set-output name=RELEASE::v'$VERSION-$GITHUB_RUN_ID
             
             #Copy built wheel file to artifacts directory
-            cp -r ./cryptography/dist/ /artifacts/
+            cp ./dist/* /artifacts/cryptography-linux-ppc64le.whl
             
-      - uses: actions/upload-artifact@v3
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          name: cryptography-ppc-whl
-          path: ./artifacts/
+          tag_name: ${{ steps.build.outputs.RELEASE }}
+          release_name: ${{ steps.build.outputs.RELEASE }}
+          draft: false
+          prerelease: false 
+          
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          asset_path: ./artifacts/cryptography-linux-ppc64le.whl
+          asset_name: cryptography-linux-ppc64le.whl
+          asset_content_type: application/octet-stream
